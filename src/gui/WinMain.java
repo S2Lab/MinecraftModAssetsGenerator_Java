@@ -44,15 +44,16 @@ public class WinMain {
 		}
 	}
 
+	public static final String AS_DEFAULT="使用默认值";
 	// 窗口组件
 	private JFrame frame;
 	private JTextField tfImportStatus;
 	private JTextArea textArea;
 	private PathItem[] pathItems;
 	private JSeparator separator;
-	private JButton button;
-	private JButton button_1;
-	private JButton button_2;
+	private JButton button_start;
+	private JButton button_save_as_default;
+	private JButton button_load_default;
 	
 	// File组
 	File[] paths=new File[9];
@@ -82,19 +83,38 @@ public class WinMain {
 		frame.setSize(860, 700);
 		frame.getContentPane().setLayout(null);
 		
-		JButton button_5 = new JButton("自动导入");
-		button_5.addActionListener(new ActionListener() {
+		button_start = new JButton("一键执行");
+		button_start.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				for(PathItem temp:pathItems)
 				{
 					if(temp.status!=OK || temp.status!=DEFAULT)
 						temp.redo.doClick();
 				}
+				boolean good=true;
+				for(PathItem temp:pathItems)
+				{
+					if(temp.status==OK||temp.status==DEFAULT)
+					{
+						;
+					}
+					else
+					{
+						good=false;
+						break;
+					}
+				}
+				if(good)
+				{
+					button_save_as_default.setEnabled(false);
+					button_load_default.setEnabled(false);
+					button_start.setEnabled(false);
+				}
 			}
 		});
-		button_5.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
-		button_5.setBounds(271, 380, 200, 30);
-		frame.getContentPane().add(button_5);
+		button_start.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
+		button_start.setBounds(271, 380, 200, 30);
+		frame.getContentPane().add(button_start);
 		
 		tfImportStatus = new JTextField();
 		tfImportStatus.setBackground(Color.BLACK);
@@ -121,13 +141,13 @@ public class WinMain {
 		separator.setBounds(14, 365, 457, 2);
 		frame.getContentPane().add(separator);
 		
-		button = new JButton("开始生成");
-		button.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
-		button.setBounds(271, 423, 200, 30);
-		frame.getContentPane().add(button);
+		button_start = new JButton("开始生成");
+		button_start.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
+		button_start.setBounds(271, 423, 200, 30);
+		frame.getContentPane().add(button_start);
 		
-		button_1 = new JButton("存为默认配置");
-		button_1.addActionListener(new ActionListener() {
+		button_save_as_default = new JButton("存为默认配置");
+		button_save_as_default.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				boolean allright=true;
 				for(PathItem temp:pathItems)
@@ -139,22 +159,29 @@ public class WinMain {
 					}
 				}
 				if(allright)
+				{
 					saveAsDefault();
+					button_load_default.setEnabled(false);
+					button_save_as_default.setEnabled(false);
+				}
 			}
 		});
-		button_1.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
-		button_1.setBounds(14, 380, 200, 30);
-		frame.getContentPane().add(button_1);
+		button_save_as_default.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
+		button_save_as_default.setBounds(14, 380, 200, 30);
+		frame.getContentPane().add(button_save_as_default);
 		
-		button_2 = new JButton("读取默认配置");
-		button_2.addActionListener(new ActionListener() {
+		button_load_default = new JButton("读取默认配置");
+		button_load_default.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				loadDefault();
+				boolean temp=loadDefault();
+				button_save_as_default.setEnabled(!temp);
+				button_load_default.setEnabled(!temp);
+				button_start.setEnabled(!temp);
 			}
 		});
-		button_2.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
-		button_2.setBounds(14, 423, 200, 30);
-		frame.getContentPane().add(button_2);
+		button_load_default.setFont(new Font("微软雅黑 Light", Font.PLAIN, 16));
+		button_load_default.setBounds(14, 423, 200, 30);
+		frame.getContentPane().add(button_load_default);
 		
 		pathItems=addPathItems();
 	}
@@ -174,7 +201,8 @@ public class WinMain {
 		Writer out=new FileWriter(fileout);
 		for(PathItem temp:pathItems)
 		{
-			out.write(temp.getText()+'\n');
+			out.write(temp.getText().trim().equals(AS_DEFAULT)?AS_DEFAULT:temp.getText().trim());
+			out.write("\r\n");
 		}
 		out.flush();
 		out.close();
@@ -187,17 +215,26 @@ public class WinMain {
 			println("保存默认配置出错");
 		}
 	}
-	public void loadDefault()
+	public boolean loadDefault()
 	{
 		println("尝试读取默认配置");
 		File filein=new File("cfg.ini");
 		try {
 			Scanner in=new Scanner(filein);
-			for(int step=0;step<9;step++)
+			for(int step=0;in.hasNextLine() && step<9;step++)
 			{
-				paths[step]=new File(in.nextLine());
+				String line=in.nextLine();
+				paths[step]=line.equals(AS_DEFAULT)?null:new File(line);
+				if(line.trim().equals(AS_DEFAULT))
+					pathItems[step].setStatus(DEFAULT);
+				else
+					pathItems[step].setStatus(OK);
+				
+				pathItems[step].input.setText(line);
 			}
+			pathItems[1].input.setText(paths[1].getName());
 			println("成功读取默认配置");
+			return true;
 		}
 		catch(Exception e)
 		{
@@ -207,6 +244,7 @@ public class WinMain {
 			{
 				paths[step]=null;
 			}
+			return false;
 		}
 	}
 	
@@ -513,7 +551,7 @@ public class WinMain {
 				input.setEnabled(false);
 			}
 			if(value==DEFAULT)
-				input.setText("使用默认值");
+				input.setText(AS_DEFAULT);
 		}
 	}
 }
